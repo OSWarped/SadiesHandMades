@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// **Users (Registered customers & Admins)**
+model User {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  password  String?   // Null for guest users
+  isAdmin   Boolean   @default(false)
+
+  orders    Order[]   @relation("UserOrders")
+  cartItems CartItem[] @relation("UserCartItems")
+  addresses Address[]  @relation("UserAddresses") // ✅ Fix: Add relation to Address
+}
+
+
+/// **Products (Slime, Crafts, etc.)**
+model Product {
+  id          String     @id @default(cuid())
+  name        String
+  description String
+  price       Decimal
+  stock       Int
+  imageUrl       String?    // Product image URL
+  imageData   String?  // 🔥 Base64-encoded image for uploaded files
+  createdAt   DateTime   @default(now())
+  cartItems   CartItem[] @relation("ProductCartItems")
+  orderItems  OrderItem[] @relation("ProductOrderItems")
+}
+
+/// **Shopping Cart (Unfinished Purchases)**
+model CartItem {
+  userId    String
+  productId String
+  quantity  Int
+
+  user      User?    @relation(fields: [userId], references: [id], name: "UserCartItems")
+  product   Product  @relation(fields: [productId], references: [id], name: "ProductCartItems")
+
+  @@id([userId, productId]) // ✅ Composite Primary Key
+}
+
+
+/// **Orders (Completed Purchases)**
+model Order {
+  id                String   @id @default(cuid())
+  userId            String?  // Nullable for guest checkout
+  guestEmail        String?  // Guest email for non-registered users
+  total             Decimal
+  status            String   @default("pending") // e.g., pending, shipped, completed
+  createdAt         DateTime @default(now())
+
+  // ✅ Fix: Ensure both addresses have opposite relations
+  billingAddressId  String?
+  billingAddress    Address? @relation(fields: [billingAddressId], references: [id], name: "BillingAddress")
+
+  shippingAddressId String?
+  shippingAddress   Address? @relation(fields: [shippingAddressId], references: [id], name: "ShippingAddress")
+
+  user              User?    @relation(fields: [userId], references: [id], name: "UserOrders")
+  orderItems        OrderItem[]
+}
+
+/// **Order Items (Tracks Purchased Items)**
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  productId  String
+  quantity   Int
+  priceAtPurchase Decimal // ✅ Saves the price at the time of purchase
+
+  order      Order   @relation(fields: [orderId], references: [id])
+  product    Product @relation(fields: [productId], references: [id], name: "ProductOrderItems")
+}
+
+model Address {
+  id         String  @id @default(cuid())
+  userId     String?
+  fullName   String
+  email      String
+  address    String
+  city       String
+  state      String
+  zip        String
+  phone      String
+
+  // ✅ Fix: Ensure proper relation to User & Orders
+  user       User?   @relation(fields: [userId], references: [id], name: "UserAddresses")
+
+  ordersBilling  Order[] @relation("BillingAddress") // ✅ Bidirectional relation to Order
+  ordersShipping Order[] @relation("ShippingAddress") // ✅ Bidirectional relation to Order
+}

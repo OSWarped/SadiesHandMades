@@ -6,17 +6,18 @@ import { useCart } from "@/context/CartContext";
 
 export default function Navbar() {
   const [user, setUser] = useState<{ name: string; isAdmin: boolean } | null>(null);
-  const { cartCount, fetchCart } = useCart(); // ✅ Get cart count from context
-  const [isFetchingUser, setIsFetchingUser] = useState(true); // ✅ Prevent unnecessary fetch calls
+  const { cartCount, fetchCart, cartItems } = useCart(); // ✅ Added cartItems to check if data exists
+  const [isFetchingUser, setIsFetchingUser] = useState(true);
+  const [hasFetchedCart, setHasFetchedCart] = useState(false); // ✅ Track if cart is already fetched
 
+  // ✅ Fetch User on Mount
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const res = await fetch("/api/auth/me");
 
         if (res.status === 401) {
-          // ✅ User is not logged in, set to null
-          setUser(null);
+          setUser(null); // ✅ User not logged in
         } else if (res.ok) {
           const data = await res.json();
           setUser(data);
@@ -31,20 +32,22 @@ export default function Navbar() {
     fetchUser();
   }, []);
 
+  // ✅ Fetch Cart Only When Needed
   useEffect(() => {
     const fetchCartSafely = async () => {
-      try {
-        // ✅ Only fetch cart if we have determined user status
-        if (!isFetchingUser) {
+      if (!isFetchingUser && !hasFetchedCart) { // ✅ Only fetch if not already fetched
+        try {
           await fetchCart();
+          setHasFetchedCart(true); // ✅ Prevent further fetches
+        } catch (error) {
+          console.error("Failed to fetch cart:", error);
         }
-      } catch (error) {
-        console.error("Failed to fetch cart:", error);
       }
     };
-
+  
     fetchCartSafely();
-  }, [isFetchingUser, fetchCart]); // ✅ Only fetch cart when user check is complete
+  }, [isFetchingUser, hasFetchedCart]); // ✅ Removed cartItems.length
+  
 
   return (
     <nav className="bg-[#5E35B1] text-white p-4 sticky top-0 shadow-md z-50">
@@ -66,7 +69,7 @@ export default function Navbar() {
             <button
               onClick={async () => {
                 await fetch("/api/auth/logout", { method: "POST" });
-                window.location.href = "/"; // ✅ Redirect user to homepage after logout
+                window.location.href = "/"; // ✅ Redirect after logout
               }}
               className="text-red-500"
             >

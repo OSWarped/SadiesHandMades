@@ -1,16 +1,39 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 
 export default function Cart() {
-  const { cartItems, cartCount, cartTotal, removeFromCart, fetchCart } = useCart();
-  const router = useRouter(); // ✅ For navigating to checkout
+  const { cartItems, cartCount, cartTotal, removeFromCart, addToCart, fetchCart } = useCart();
+  const router = useRouter();
+  const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
-    fetchCart(); // ✅ Fetch cart on page load
+    fetchCart();
   }, [fetchCart]);
+
+  useEffect(() => {
+    const initialQuantities = cartItems.reduce((acc, item) => {
+      acc[item.id] = item.quantity;
+      return acc;
+    }, {} as { [key: string]: number });
+    setQuantities(initialQuantities);
+  }, [cartItems]);
+
+  const handleQuantityChange = (productId: string, value: number) => {
+    setQuantities((prev) => ({ ...prev, [productId]: value }));
+  };
+
+  const handleUpdate = async (productId: string) => {
+    const newQuantity = quantities[productId];
+    if (newQuantity === 0) {
+      await removeFromCart(productId);
+    } else {
+      await addToCart(productId, newQuantity - cartItems.find(item => item.id === productId)?.quantity!);
+    }
+    await fetchCart();
+  };
 
   return (
     <div className="container mx-auto p-6">
@@ -26,29 +49,45 @@ export default function Cart() {
                 <div>
                   <p className="text-lg font-semibold">{item.product.name}</p>
                   <p className="text-gray-600">
-                    {item.quantity} × ${Number(item.product.price).toFixed(2)}
+                    ${Number(item.product.price).toFixed(2)} each
                   </p>
                 </div>
-                <button
-                  onClick={async () => {
-                    await removeFromCart(item.product.id);
-                    await fetchCart(); // ✅ Immediately update UI
-                  }}
-                  className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition"
-                >
-                  Remove
-                </button>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    min="0"
+                    value={quantities[item.id] || 0}
+                    onChange={(e) => handleQuantityChange(item.id, Number(e.target.value))}
+                    className="w-16 text-center border rounded-md p-1"
+                  />
+
+                  <button
+                    onClick={() => handleUpdate(item.id)}
+                    className="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition"
+                  >
+                    Update
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      await removeFromCart(item.product.id);
+                      await fetchCart();
+                    }}
+                    className="bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600 transition"
+                  >
+                    Remove
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
 
-          {/* ✅ Cart Totals */}
           <div className="mt-6 text-lg">
             <p className="font-bold">Total Items: {cartCount}</p>
             <p className="font-bold text-xl">Total Cost: ${cartTotal.toFixed(2)}</p>
           </div>
 
-          {/* ✅ Checkout Button */}
           <button
             onClick={() => router.push("/checkout")}
             className="bg-green-600 text-white text-lg font-bold px-6 py-3 rounded-lg mt-6 w-full hover:bg-green-700 transition"

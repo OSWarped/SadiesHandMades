@@ -3,31 +3,41 @@ import prisma from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { cookies } from "next/headers"; // ✅ Import cookie handling
 
-export async function DELETE() {
+export async function DELETE(req: Request) {
   try {
     const user = await getSessionUser();
-    const cookieStore = await cookies(); // ✅ Get cookies
+    const cookieStore = await cookies();
+    const { productId } = await req.json(); // ✅ Expect productId in request body
 
     if (user) {
-      // ✅ Logged-in User: Clear database cart
+      // ✅ Logged-in User: Remove specific item from database cart
       await prisma.cartItem.deleteMany({
-        where: { userId: user.id },
+        where: {
+          userId: user.id,
+          productId,
+        },
       });
     } else {
-      // ✅ Guest: Clear guest cart stored in cookies
+      // ✅ Guest: Remove specific item from guest cart stored in cookies
+      const guestCart = cookieStore.get("guest_cart")?.value;
+      let cart = guestCart ? JSON.parse(guestCart) : [];
+
+      // Remove the item from the guest cart
+      cart = cart.filter((item: { id: string }) => item.id !== productId);
+
+      // Update the guest cart cookie
       cookieStore.set({
         name: "guest_cart",
-        value: "", // Empty cart data
+        value: JSON.stringify(cart),
         path: "/",
-        maxAge: 0, // Expire immediately
-        httpOnly: false, // Allow client-side access
+        maxAge: 7 * 24 * 60 * 60, // 7 days
+        httpOnly: false,
       });
     }
 
     return NextResponse.json({ success: true }, { status: 200 });
-
   } catch (error) {
-    console.error("❌ Error clearing cart:", error);
-    return NextResponse.json({ error: "Failed to clear cart" }, { status: 500 });
+    console.error("❌ Error removing item from cart:", error);
+    return NextResponse.json({ error: "Failed to remove item from cart" }, { status: 500 });
   }
 }

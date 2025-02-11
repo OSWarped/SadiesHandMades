@@ -30,7 +30,14 @@ export default function Cart() {
     if (newQuantity === 0) {
       await removeFromCart(productId);
     } else {
-      await addToCart(productId, newQuantity - cartItems.find(item => item.id === productId)?.quantity!);
+      //await addToCart(productId, newQuantity - cartItems.find(item => item.id === productId)?.quantity!);
+      const currentItem = cartItems.find(item => item.id === productId);
+      const currentQuantity = currentItem ? currentItem.quantity : 0;
+      const quantityDifference = newQuantity - currentQuantity;
+
+      if (quantityDifference !== 0) {
+        await addToCart(productId, quantityDifference);
+      }
     }
     await fetchCart();
   };

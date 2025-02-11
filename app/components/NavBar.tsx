@@ -6,7 +6,7 @@ import { useCart } from "@/context/CartContext";
 
 export default function Navbar() {
   const [user, setUser] = useState<{ name: string; isAdmin: boolean } | null>(null);
-  const { cartCount, fetchCart, cartItems } = useCart(); // ✅ Added cartItems to check if data exists
+  const { cartCount, fetchCart } = useCart(); // ✅ Added cartItems to check if data exists
   const [isFetchingUser, setIsFetchingUser] = useState(true);
   const [hasFetchedCart, setHasFetchedCart] = useState(false); // ✅ Track if cart is already fetched
 
@@ -46,7 +46,7 @@ export default function Navbar() {
     };
   
     fetchCartSafely();
-  }, [isFetchingUser, hasFetchedCart]); // ✅ Removed cartItems.length
+  }, [isFetchingUser, hasFetchedCart, fetchCart]); // ✅ Removed cartItems.length
   
 
   return (
